@@ -9,6 +9,6 @@ class WindowsBackend:
 
 backend = WindowsBackend()
 
-print(f"CEMU ProcessID: {backend.pm.process_id")
+print(f"CEMU ProcessID: {backend.pm.process_id}")
 
 
