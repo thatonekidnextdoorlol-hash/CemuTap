@@ -17,6 +17,11 @@ def findbase():
              lpopt = f.read()
              matches = re.findall(pattern, lpopt)
              return int(matches[-1], 16)
+        
+def readunit(backend, base, guest, size):
+    hostaddress = base + guest
+    habo =  backend.read(hostaddress, size)
+    return int.from_bytes(habo, "big")
 
 backend = WindowsBackend()
 
@@ -25,7 +30,7 @@ base = findbase()
 print(hex(base))
 
 try:
-     data = backend.read(base + 0x10000000, 4)
-     print(data)
+     print(readunit(backend, base, 0x10000000, 4))
 except Exception as e:
      print(f"!!! READ FAILURE. Is Cemu running? If it is, try running Cemu and this script at an administrator level: {e}")
+
