@@ -253,6 +253,14 @@ def comparearrays(mode,now,old,value,floattoggle=False):
         return now.view(f">u{now.itemsize}") != old.view(f">u{old.itemsize}")
     if mode=="unchanged":
         return now.view(f">u{now.itemsize}") == old.view(f">u{old.itemsize}")
+    if mode in ("increased by","decreased by"):
+        if floattoggle:
+            diff=now-old if mode=="increased by" else old-now
+            return np.abs(diff-value)<0.01
+        diff= now.astype(np.int64)-old.astype(np.int64)
+        if mode == "decreased by":
+            diff=-diff #mirror diff's value
+        return diff==value
     return np.zeros(len(now),dtype=bool)
 
 def keep(mode,current,old,value,floattoggle=False):
@@ -268,7 +276,16 @@ def keep(mode,current,old,value,floattoggle=False):
         return not (current == old or (current != current and old != old))
     if mode=="unchanged":
         return current == old or (current != current and old != old)
-    return False #if none pass ofc
+    
+    if mode=="increased by":
+        if floattoggle:
+            return abs((current-old)-value)<0.01
+        return current-old==value
+    if mode=="decreased by":
+        if floattoggle:
+            return abs((old-current)-value)<0.01
+        return old-current==value
+    return False #if none pass, obviously
 
 def nextscan(backend, base, found, previous, value, size, mode="exact",floattoggle=False,signed=False,progress = None):
      dtype=dtypefor(size,floattoggle,signed)

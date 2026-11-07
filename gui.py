@@ -175,6 +175,8 @@ def scanb():
                     if not scanfloat and not low <= value <= high:
                         scanstatus.config(text=f"Value must be between {low} and {high}.")
                         return
+                elif mode in ("increased by","decreased by"):
+                    value=float(valuebox.get()) if scanfloat else int(valuebox.get())
                 else:
                     value=0
                 historymem()
@@ -235,7 +237,7 @@ bytesizelabel.grid(row=1, column=0, padx=8, pady=8)
 nextscanbutton = ttk.Button(scantab, text="Next Scan", command=scanb)
 nextscanbutton.grid(row=3,column=0,padx=8,pady=8)
 
-scantype=ttk.Combobox(scantab, values=["Exact", "Increased","Decreased","Changed","Unchanged"], state="readonly")
+scantype=ttk.Combobox(scantab, values=["Exact", "Increased","Decreased","Increased By","Decreased By","Changed","Unchanged"], state="readonly")
 scantype.grid(row=3,column=1,padx=8,pady=8)
 scantype.set("Exact")
 
