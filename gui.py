@@ -22,6 +22,7 @@ scansigned=False
 base = 0
 scansize = 2
 buttonstate = "!disabled"
+history = []
 
 root = tk.Tk()
 root.title("CemuTap")
@@ -87,6 +88,11 @@ def showmatches():
             val = "?"
         results.insert("end", f"{hex(addr)} ({val})")
 
+def historymem():
+    history.append((found,previous,scansize,scanfloat,scansigned))
+    if len(history)>10:
+        history.pop(0)
+
 def scana():
     global found, scansize, previous, scanfloat, snapshotpath, scansigned
     if backend is None:
@@ -97,6 +103,7 @@ def scana():
         isfloat=sizetext=="Float"
         togglebuttons("disabled")
         try:
+            historymem()
             snapshotpath=snapshot(backend,base,progress=totalprogress)
             found=[]
             previous=[]
@@ -123,6 +130,7 @@ def scana():
         if not floattoggle and not low <= value <= high:
             scanstatus.config(text=f"Value must be between {low} and {high}.")
             return
+        historymem()
         found,previous = primaryscan(backend, base, value, bytesize, floattoggle=floattoggle, signed=issigned, progress=totalprogress)
         scansize=bytesize
         scanfloat = floattoggle
@@ -169,6 +177,7 @@ def scanb():
                         return
                 else:
                     value=0
+                historymem()
                 if snapshotpath is not None:
                     found,previous=snapshotscan(backend,base,snapshotpath,scansize,mode,value,scanfloat,signed=scansigned,progress=totalprogress)
                     try:
@@ -195,6 +204,15 @@ def scanb():
             return
     else:
         scanstatus.config(text="Not attached to Cemu.")
+
+def scanundo():
+    global found,previous,scansize,scanfloat,scansigned
+    if not history:
+        scanstatus.config(text="Nothing to undo.")
+        return
+    found,previous,scansize,scanfloat,scansigned =history.pop()
+    showmatches()
+    scanstatus.config(text=f"Undo Success! Recovered {len(found)} Address Matches.")
 
 def cleartableevent():
     global found,previous,snapshotpath
@@ -459,6 +477,9 @@ resettable.pack(side=tk.LEFT,padx=8)
 
 addtotablebutton=ttk.Button(tablecontrols,text="Add Value to Table",command=addtotable)
 addtotablebutton.pack(side=tk.LEFT,padx=8)
+
+undobutton=ttk.Button(tablecontrols,text="Undo Scan",command=scanundo)
+undobutton.pack(side=tk.LEFT,padx=8)
 
 def editortype():
     text=editorsize.get()
