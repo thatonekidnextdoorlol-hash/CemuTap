@@ -206,6 +206,34 @@ def primaryscan(backend, base, value, size, floattoggle=False,signed=False,progr
             progress(guest-0x10000000 + 0x100000)
      return found, values
 
+def pointerscan(backend,base,target,mos=0x1000,progress=None):#ps: mos is the maximum offset for how far the target pointer can point but still count. (also 0x1000 is 4096 bytes)
+    results=[]
+    low=target-mos
+    for guest in range(0x10000000,0x50000000,0x100000):
+        try:
+            chunk=backend.read(base+guest,0x100000)
+        except Exception:
+            continue
+        arr=np.frombuffer(chunk,dtype=">u4")
+        hits = np.nonzero((arr>=low)&(arr<=target))[0]
+        for interval in hits.tolist():
+            pointedto=int(arr[interval])
+            results.append((guest+interval*4,target-pointedto))
+        if progress is not None:#ps: is not none means it'll only quit appending once the scan is done
+            progress(guest-0x10000000+0x100000)
+    return results
+
+def pointerfilter(backend,base,candidates,target):
+    survivors=[]
+    for pointer,off in candidates:
+        try:
+            pointedto=readvalue(backend,base, pointer,4)
+        except Exception:
+            continue
+        if pointedto+off==target:
+            survivors.append((pointer,off))
+    return survivors
+
 def snapshot(backend,base,progress=None):
     path=os.path.join(datadir(),"snapshot.bin")
     with open(path,"wb") as file:

@@ -66,6 +66,9 @@ Steps:
     python gui.py
 ```
 
+## CemuTap usage in Online Matches
+I **do not** support the use of CemuTap's memory editing features in public matches to gain an unfair advantage. Use CemuTap in online but private instances at your own risk and refer to Pretendo Network's [Online Services Code of Conduct](https://preten.do/network-rules) or the terms of usage on any other Nintendo Network Replacement Service that you are using.
+
 ## Limitations
 - Only scans MEM2 (0x10000000 to 0x50000000)
 

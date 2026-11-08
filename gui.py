@@ -5,7 +5,7 @@ from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import simpledialog
-from main import WindowsBackend, findbase, primaryscan, nextscan, export, importscan, readunit, backendcreate, loadcts, savesettings, PluginAPI, pluginslistbuild,executeplugin, plugininstall, writeu,readvalue, writevalue, snapshot, snapshotscan, findtitleid, savetable, loadtable, valuerange, datadir
+from main import WindowsBackend, findbase, primaryscan, nextscan, export, importscan, readunit, backendcreate, loadcts, savesettings, PluginAPI, pluginslistbuild,executeplugin, plugininstall, writeu,readvalue, writevalue, snapshot, snapshotscan, findtitleid, savetable, loadtable, valuerange, datadir, pointerscan, pointerfilter
 settings = loadcts()
 import os
 from datetime import datetime
@@ -23,6 +23,7 @@ base = 0
 scansize = 2
 buttonstate = "!disabled"
 history = []
+pointeraddresses = []
 
 root = tk.Tk()
 root.title("CemuTap")
@@ -40,6 +41,9 @@ toptab.add(liveedittab, text="Live Address Editor")
 
 tabletab=ttk.Frame(toptab)
 toptab.add(tabletab,text="Address Table")
+
+pointertab=ttk.Frame(toptab)
+toptab.add(pointertab,text="Pointer Addresses")
 
 pluginstab=ttk.Frame(toptab)
 toptab.add(pluginstab,text="Plugins")
@@ -355,7 +359,7 @@ def ctclose():
             savetable(path,tablelist())
         except Exception as exc:
             print(f"Address Table Autosave failed for Reason: {exc}")
-        root.destroy()
+    root.destroy()
 root.protocol("WM_DELETE_WINDOW", ctclose)
 
 ttk.Button(tablebuttons,text="Export Table",command=exporttable).pack(side="left",padx=(8,0))
@@ -390,13 +394,78 @@ def edittable(event):
             messagebox.showerror("Edit", f"Write Failed For Reason: {exc}",parent=root)
 table.bind("<Double-Button-1>",edittable)
 
+ttk.Label(pointertab,text="Target Address:").grid(row=0,column=0,padx=8,pady=8)
+pointeraddressvalue=ttk.Entry(pointertab)
+pointeraddressvalue.grid(row=0,column=1,padx=8,pady=8)
+
+ttk.Label(pointertab,text="Max Offset:").grid(row=1,column=0,padx=8,pady=8)
+pointeroffset=ttk.Entry(pointertab)
+pointeroffset.grid(row=1,column=1,padx=8,pady=8)
+pointeroffset.insert(0,"0x1000")
+
+pointerstatus=ttk.Label(pointertab,text="Ready.")
+pointerstatus.grid(row=4,column=0,columnspan=2,padx=8,pady=8)
+
+pointerlist=tk.Listbox(pointertab,width=40,height=12,borderwidth=0,highlightthickness=1)
+pointerlist.grid(row=0,column=2,rowspan=5,padx=8,pady=8)
+
+def pointerprogress(scanned):
+    pointerstatus.config(text=f"Scanned {scanned//0x100000} of 1024 MB") #cemu's total amount of available memory (as the wii u has a stock of 1024mb of ram)
+    root.update()
+
+def pointershow():
+    pointerlist.delete(0,"end")
+    for pointer,off in pointeraddresses[:500]:
+        pointerlist.insert("end",f"[{hex(pointer)}] + {hex(off)}")
+
+def locatepointers():
+    global pointeraddresses
+    if backend is None:
+        pointerstatus.config(text="Not attached to Cemu.")
+        return
+    try:
+        target=int(pointeraddressvalue.get(),16)
+        maxoffset=int(pointeroffset.get(),16)
+    except ValueError:
+        pointerstatus.config(text="Hex Addresses are the only values supported here.")
+        return
+    if not 0x10000000<=target<0x50000000: #Safeguard to prevent crashes. I accidently set the address to "1" and it crashed almost every program on my computer.
+        pointerstatus.config(text="Target must be inside MEM2's range (0x10000000 to 0x50000000)")
+        return
+    pointeraddresses=pointerscan(backend,base,target,maxoffset,progress=pointerprogress)#runs the pointer search
+    pointershow()
+    pointerstatus.config(text=f"{len(pointeraddresses)} Pointers Found.")
+
+def filterpointers():
+    global pointeraddresses
+    if backend is None:
+        pointerstatus.config(text="Not attached to Cemu.")
+        return
+    if not pointeraddresses:
+        pointerstatus.config(text="Please scan for pointers before attempting to filter.")
+        return
+    try:
+        target=int(pointeraddressvalue.get(),16)
+    except ValueError:
+        pointerstatus.config(text="Hex Addresses are the only values supported here.")
+        return
+    pointeraddresses=pointerfilter(backend,base,pointeraddresses,target)
+    pointershow()
+    pointerstatus.config(text=f"{len(pointeraddresses)} Pointers Remaining.")
+
+ttk.Button(pointertab,text="Scan Pointers",command=locatepointers).grid(row=2,column=0,columnspan=2,padx=8,pady=8)#this buttons takes up 2 columns.
+
+ttk.Button(pointertab,text="Filter Pointers",command=filterpointers).grid(row=3,column=0,columnspan=2,padx=8,pady=8)
+
 def addrtablecolors():
     if sv_ttk.get_theme()=="dark":
         results.config(bg="#2c2c2c",fg="#ffffff",highlightbackground="#3a3a3a")
         pluginlist.config(bg="#2c2c2c",fg="#ffffff",highlightbackground="#3a3a3a")
+        pointerlist.config(bg="#2c2c2c",fg="#ffffff",highlightbackground="#3a3a3a")
     else:
         results.config(bg="#ffffff",fg="#000000", highlightbackground="#cccccc")
         pluginlist.config(bg="#ffffff",fg="#000000", highlightbackground="#cccccc")
+        pointerlist.config(bg="#ffffff",fg="#000000", highlightbackground="#cccccc")
 addrtablecolors()
 def theme():
     sv_ttk.toggle_theme()
