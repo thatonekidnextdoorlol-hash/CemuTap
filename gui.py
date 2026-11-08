@@ -1,12 +1,11 @@
 import tkinter as tk
 import sv_ttk
 import json
-import time
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import simpledialog
-from main import WindowsBackend, findbase, primaryscan, nextscan, export, importscan, readunit, backendcreate, loadcts, savesettings, PluginAPI, pluginslistbuild,executeplugin, plugininstall, writeu,readvalue, writevalue, snapshot, snapshotscan, findtitleid, savetable, loadtable, valuerange
+from main import WindowsBackend, findbase, primaryscan, nextscan, export, importscan, readunit, backendcreate, loadcts, savesettings, PluginAPI, pluginslistbuild,executeplugin, plugininstall, writeu,readvalue, writevalue, snapshot, snapshotscan, findtitleid, savetable, loadtable, valuerange, datadir
 settings = loadcts()
 import os
 from datetime import datetime
@@ -340,6 +339,24 @@ def importtable():
         filltable(loadtable(path))
     except Exception:
         messagebox.showerror("Import Table", "Couldn't read selected file. Are you sure it is a CemuTap table?",parent=root)
+
+def filepathautosaves():
+    titleid=findtitleid()
+    if not titleid:
+        return None
+    folder=os.path.join(datadir(), "tables" )
+    os.makedirs(folder,exist_ok=True)
+    return os.path.join(folder,f"{titleid}.ctmt") #returning the path to the autosave
+
+def ctclose():
+    path = filepathautosaves()
+    if path:
+        try:
+            savetable(path,tablelist())
+        except Exception as exc:
+            print(f"Address Table Autosave failed for Reason: {exc}")
+        root.destroy()
+root.protocol("WM_DELETE_WINDOW", ctclose)
 
 ttk.Button(tablebuttons,text="Export Table",command=exporttable).pack(side="left",padx=(8,0))
 ttk.Button(tablebuttons,text="Import Table",command=importtable).pack(side="left",padx=(8,0))
@@ -720,6 +737,14 @@ if api is not None: #remove any plugins from the pinned tabs if they were delete
 for info,module in loaded:
     if pluginid(info) in settings["pinned"] and len(pinnedtabs) < 3:
         pinplugintab(info,module)
+
+#creating the address table from the autosave
+path=filepathautosaves()
+if path and os.path.exists(path):
+    try:
+        filltable(loadtable(path))
+    except Exception as exc:
+        print(f"Couldn't load the autosave of the Address Table for reason: {exc}")
 
 refloop()
 loopfreeze()
