@@ -281,6 +281,11 @@ def typelabel(size,isfloat,signed):
         return "Float"
     return f"{size} Signed" if signed else str(size)
 
+def rowaddresses(row):
+    if "pointer" in row:
+        return readvalue(backend,base,row["pointer"],4)+row["offset"]
+    return row["address"]
+
 def addtotable():
     selection=results.curselection()
     if not selection:
@@ -301,7 +306,7 @@ def tablefreezeevent():
             table.item(iid,tags=())
         else:
             try:
-                row["frozen"]=readvalue(backend,base,row["address"],row["size"],row["float"],row.get("signed",False))
+                row["frozen"]=readvalue(backend,base,rowaddresses(row),row["size"],row["float"],row.get("signed",False))
                 table.item(iid,tags=("frozen",))
             except Exception:
                 pass
@@ -310,14 +315,19 @@ ttk.Button(tablebuttons,text="Toggle Freeze",command=tablefreezeevent).pack(side
 def tablelist():
     rows=[]
     for iid,row in tablerows.items():
-        rows.append({
+        entry = {
             "name":table.set(iid,"name"),
             "title":table.set(iid,"title"),
-            "address":row["address"],
             "size":row["size"],
             "float":row["float"],
             "signed":row.get("signed",False),
-        })
+        }
+        if "pointer" in row: #only builds if there is a pointer
+            entry["pointer"]=row["pointer"]
+            entry["offset"]=row["offset"]
+        else:
+            entry["address"] = row["address"]
+        rows.append(entry)
     return rows
 
 def filltable(rows):
@@ -327,8 +337,19 @@ def filltable(rows):
     for row1 in rows:
         signed=row1.get("signed",False)
         typetext = typelabel(row1["size"],row1["float"],signed)
-        iid=table.insert("","end",values=(row1["name"],hex(row1["address"]),typetext,"?",row1["title"]))
-        tablerows[iid] = {"address": row1["address"], "size":row1["size"], "float":row1["float"], "signed":signed}
+        tabledetails = {"size":row1["size"],"float":row1["float"],"signed":signed}
+        if "pointer" in row1:
+            label=f"[{hex(row1['pointer'])}] + {hex(row1['offset'])}"
+            tabledetails["pointer"]=row1["pointer"]
+            tabledetails["offset"]=row1["offset"]
+        else:
+            label=hex(row1["address"])
+            tabledetails["address"]=row1["address"]
+        iid = table.insert("","end",values=(row1["name"],label,typetext,"?",row1["title"]))
+        tablerows[iid]=tabledetails
+
+        #iid=table.insert("","end",values=(row1["name"],hex(row1["address"]),typetext,"?",row1["title"]))
+        #tablerows[iid] = {"address": row1["address"], "size":row1["size"], "float":row1["float"], "signed":signed}
 
 def exporttable():
     path=filedialog.asksaveasfilename(defaultextension=".ctmt",filetypes=[("CemuTap Table","*.ctmt")],parent=root)
@@ -387,7 +408,7 @@ def edittable(event):
             low,high=valuerange(row["size"],row.get("signed",False))
             if not row["float"] and not low<=value<=high:
                 raise ValueError
-            writevalue(backend,base,row["address"],row["size"],value,row["float"],row.get("signed",False))
+            writevalue(backend,base,rowaddresses(row),row["size"],value,row["float"],row.get("signed",False))
         except ValueError:
             messagebox.showerror("Edit", "Please enter a valid number for the current byte size.",parent=root)
         except Exception as exc:
@@ -453,9 +474,24 @@ def filterpointers():
     pointershow()
     pointerstatus.config(text=f"{len(pointeraddresses)} Pointers Remaining.")
 
+def addselectedpointertotable():
+    selection = pointerlist.curselection()
+    if not selection:
+        pointerstatus.config(text="Please select a pointer to add to the Address Table.")
+        return
+    pointer,off=pointeraddresses[selection[0]]
+    title=findtitleid() or "?" #only sets the title to "?" if the game title can't be found, just like the other table adding function.
+    typetext=typelabel(scansize,scanfloat,scansigned)
+    label=f"[{hex(pointer)}] + {hex(off)}"
+    iid=table.insert("","end",values= ("New Pointer",label,typetext,"?", title))
+    tablerows[iid]={"pointer":pointer,"offset":off,"size":scansize,"float":scanfloat,"signed":scansigned}
+    pointerstatus.config(text=f"Successfully added {label} to the Address Table!")
+
 ttk.Button(pointertab,text="Scan Pointers",command=locatepointers).grid(row=2,column=0,columnspan=2,padx=8,pady=8)#this buttons takes up 2 columns.
 
 ttk.Button(pointertab,text="Filter Pointers",command=filterpointers).grid(row=3,column=0,columnspan=2,padx=8,pady=8)
+
+ttk.Button(pointertab,text="Add to Address Table", command=addselectedpointertotable).grid(row=5,column=2,columnspan=2,padx=8,pady=8)
 
 def addrtablecolors():
     if sv_ttk.get_theme()=="dark":
@@ -619,7 +655,7 @@ def refloop():
     root.after(1000,refloop)
     for iid,row in tablerows.items():
         try:
-            val=readvalue(backend,base,row["address"],row["size"],row["float"],row.get("signed",False))
+            val=readvalue(backend,base,rowaddresses(row),row["size"],row["float"],row.get("signed",False))
             text=str(round(val,4) if row["float"] else val)
         except Exception:
             text="?"
@@ -669,7 +705,7 @@ def loopfreeze():
     for row in tablerows.values():
         if row.get("frozen") is not None:
             try:
-                writevalue(backend,base,row["address"],row["size"],row["frozen"],row["float"],row.get("signed",False))
+                writevalue(backend,base,rowaddresses(row),row["size"],row["frozen"],row["float"],row.get("signed",False))
             except Exception:
                 pass
     root.after(100,loopfreeze)
