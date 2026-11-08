@@ -172,7 +172,7 @@ def readunit(backend, base, guest, size):
 
 def dtypefor(size,floattoggle=False,signed=False):
     if floattoggle:
-        return ">f4"
+        return ">f{size}"
     return f">i{size}" if signed else f">u{size}"#returns >i(size) if value is signed, if it isn't it returns >u(size)
 
 def valuerange(size,signed=False):

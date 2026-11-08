@@ -66,7 +66,7 @@ valuebox.grid(row=0, column=1, padx=8, pady=8)
 sizeframe = ttk.Frame(scantab)
 sizeframe.grid(row=1,column=1,pady=8,padx=8)
 
-size = ttk.Combobox(sizeframe, values=["1","2","4", "Float"], state="readonly", width=5)
+size = ttk.Combobox(sizeframe, values=["1","2","4", "Float","Double"], state="readonly", width=7)
 size.pack(side="left")
 size.set("2")
 
@@ -83,6 +83,15 @@ pluginpanel.grid(row=0,sticky="nsew",column=1,pady=8,padx=8)
 pluginstab.rowconfigure(0,weight=1)
 pluginstab.columnconfigure(1,weight=1)
 
+def parsetype(text): #turns the dropdown text into (size, isfloat). also allows scans to understand 8 byte integers and 8 byte floats (doubles)
+    if text=="Double": return 8, True
+    if text=="Float": return 4, True
+    return int(text),False
+
+def typename(size,isfloat):
+    if isfloat:
+        return "Double" if size==8 else "Float"
+    return str(size)
 
 def showmatches():
     results.delete(0, "end")
@@ -106,15 +115,14 @@ def scana():
         scanstatus.config(text="Not attached to Cemu.")
         return 
     if unknownvalue.get():
-        sizetext=size.get()
-        isfloat=sizetext=="Float"
+        bytesize, isfloat=parsetype(size.get())
         togglebuttons("disabled")
         try:
             historymem()
             snapshotpath=snapshot(backend,base,progress=totalprogress)
             found=[]
             previous=[]
-            scansize=4 if isfloat else int(sizetext)
+            scansize=bytesize
             scanfloat=isfloat
             scansigned = signedvar.get() and not isfloat
             showmatches()
@@ -122,11 +130,9 @@ def scana():
         finally:
             togglebuttons("!disabled")
         return
-    sizetext=size.get()
-    floattoggle= sizetext=="Float"
+    bytesize,floattoggle=parsetype(size.get())
     try:
-        bytesize=4 if floattoggle else int(sizetext)
-        value= float(valuebox.get()) if floattoggle else int(valuebox.get())
+        value=float(valuebox.get()) if floattoggle else int(valuebox.get())
     except ValueError:
         scanstatus.config(text=f"Please enter a valid number.")
         return
@@ -290,7 +296,7 @@ ttk.Button(tablebuttons,text="Remove Row",command=removetablevalue).pack(side="l
 
 def typelabel(size,isfloat,signed):
     if isfloat:
-        return "Float"
+        return typename(size,isfloat)
     return f"{size} Signed" if signed else str(size)
 
 def rowaddresses(row):
@@ -595,7 +601,7 @@ def importbuttonevent():
                 previous.append(readvalue(backend,base,addr,scansize,scanfloat))
             except Exception:
                 previous.append(0)
-        size.set("Float" if scanfloat else str(scansize))
+        size.set(typename(scansize,scanfloat))
         scanstatus.config(text=f"Successfully imported CemuTap Scan file.")
         showmatches()
     except Exception:
@@ -611,7 +617,7 @@ sizelabel.grid(row=1, column=0, padx=8, pady=8)
 editorsizeframe=ttk.Frame(liveedittab)
 editorsizeframe.grid(row=1,column=1,padx=8,pady=8)
 #   editor size frame
-editorsize=ttk.Combobox(editorsizeframe, values=["1","2","4","Float"], state="readonly", width=5)
+editorsize=ttk.Combobox(editorsizeframe, values=["1","2","4","Float", "Double"], state="readonly", width=7)
 editorsize.pack(side="left")
 editorsize.set("2")
 editorsigned=tk.BooleanVar(value=False)
@@ -651,10 +657,9 @@ undobutton=ttk.Button(tablecontrols,text="Undo Scan",command=scanundo)
 undobutton.pack(side=tk.LEFT,padx=8)
 
 def editortype():
-    text=editorsize.get()
-    floattoggle=text=="Float"
+    editorbytesize,floattoggle=parsetype(editorsize.get())
     signed=editorsigned.get() and not floattoggle
-    return (4 if floattoggle else int(text)), floattoggle, signed #returns 4 is floattoggle is valid
+    return editorbytesize,floattoggle,signed
 
 def write():
     if backend is None:
@@ -686,7 +691,7 @@ def sendaddresstoeditor(event):
     addr = found[selection[0]]
     editoraddr.delete(0,"end")
     editoraddr.insert(0,hex(addr))
-    editorsize.set("Float" if scanfloat else str(scansize))
+    editorsize.set(typename(scansize,scanfloat))
     editorsigned.set(scansigned)
     toptab.select(liveedittab)
 results.bind("<Double-Button-1>",sendaddresstoeditor)
