@@ -162,10 +162,14 @@ def scana():
 
 def totalprogress(scanned):
     scanstatus.config(text=f"Scanned {scanned // 0x100000} of 1024 MB")
+    scanprogress.config(maximum=1024)
+    scanprogress["value"]=scanned//0x100000
     root.update()
 
 def progress2(checked,total):
     scanstatus.config(text=f"Scanned {checked} of {total} Addresses")
+    scanprogress.config(maximum=max(total,1))
+    scanprogress["value"]=checked
     root.update()
 
 primaryscanbutton = ttk.Button(scantab, text="New Scan", command=scana)
@@ -563,6 +567,9 @@ ttk.Label(settingstab, text=f"CemuTap Version {CemuTapVersion('Full')} by GABEWA
 
 scanstatus = ttk.Label(scantab, text="Ready")
 scanstatus.grid(row=4,column=0,columnspan=2,padx=8,pady=8)
+
+scanprogress=ttk.Progressbar(scantab,mode="determinate",maximum=1024)
+scanprogress.grid(row=6,column=0,columnspan=3,padx=8,pady=8,sticky="ew")
 
 def togglebuttons(override):
     global buttonstate
