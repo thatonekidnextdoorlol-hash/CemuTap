@@ -1,6 +1,7 @@
 import tkinter as tk
 import sv_ttk
 import json
+import time
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
@@ -26,7 +27,7 @@ history = []
 
 root = tk.Tk()
 root.title("CemuTap")
-root.geometry("800x400")
+root.geometry("850x400")
 sv_ttk.set_theme(settings["theme"])
 
 toptab=ttk.Notebook(root)
@@ -554,6 +555,7 @@ def togglefreezevalue():
         return
     if backend is None:
         editorstatus.config(text="CemuTap is not currently attached to Cemu. Is Cemu even open?")
+        
         return
     try:
         address=int(editoraddr.get(),16)
@@ -668,6 +670,25 @@ def onpin():
 
 pinpluginbutton=ttk.Button(pluginstab,text="Pin/Unpin Plugin",command=onpin)
 pinpluginbutton.grid(row=2,pady=8,padx=8,sticky="ew",column=0)
+
+def cemureattachfunct():
+    global backend,base,api
+    try:
+        backend=backendcreate()
+        base=findbase()
+    except Exception as exc:
+        backend=None
+        scanstatus.config(text=f"!!! Cemu Attach Failed for Reason: {exc}")
+        return
+    if api is not None:
+        api.backend=backend
+        api.base=base
+    else:
+        api=PluginAPI(backend,base)#creating the backend for the plugins again
+    scanstatus.config(text=f"Reattached to Cemu! Cemu World Address: {hex(base)}")
+
+reattachcemubutton=ttk.Button(settingstab, text="Reattach to Cemu", command=cemureattachfunct)
+reattachcemubutton.grid(row=6,column=0,padx=8,pady=8)
 
 try:
     backend = backendcreate()

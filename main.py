@@ -336,8 +336,8 @@ def loadtable(path):
         return json.load(file)["rows"]
 
 if __name__ == "__main__": # just to make sure the terminal doesn't open :P
-
-     backend = WindowsBackend()
+# after a whole lot of stupidity, i figured out that running main,py directly instead of gui.py doesn't open the gui. if you got sent here to line 340 for this reason, you fell into the same trap. funny, eh? run gui.py to use the gui. this is a testing node for windows.
+     backend = WindowsBackend() #WINDOWS ONLY FOR TESTING.
 
      print(f"CEMU ProcessID: {backend.pm.process_id}")
      base = findbase()
