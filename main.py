@@ -40,6 +40,14 @@ class PluginAPI:
     def onscan(self,function):
         self.scancallbacks.append(function)
 
+def CemuTapVersion(versiontype): # !!! CHANGE FOR EVERY RELEASE
+    if versiontype == "Full":
+        return "v1.4.0"
+    elif versiontype == "Short":
+        return "v1.4"
+    elif versiontype == "Number":
+        return 4
+
 def cemupid():
     for process in psutil.process_iter(["name"]):
         name=process.info["name"]
@@ -350,7 +358,7 @@ def nextscan(backend, base, found, previous, value, size, mode="exact",floattogg
      return survivors,survivingvalues
 
 def export(path, found, size,floattoggle=False):
-    data = {"version": 3, "size": size, "float": floattoggle, "addresses": found} #CHANGE WHENEVER UPDATED !!!
+    data = {"version": CemuTapVersion("Number"), "size": size, "float": floattoggle, "addresses": found} #CHANGE WHENEVER UPDATED !!!
     with open(path,"w") as f:
         json.dump(data,f)
 
@@ -360,7 +368,7 @@ def importscan(path):
         return data["addresses"],data["size"],data.get("float",False)
 
 def savetable(path,rows):
-    data={"version":1,"rows":rows}
+    data={"version":CemuTapVersion("Number"),"rows":rows}
     with open(path,"w") as file:
         json.dump(data,file)
 

@@ -5,7 +5,7 @@ from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import simpledialog
-from main import WindowsBackend, findbase, primaryscan, nextscan, export, importscan, readunit, backendcreate, loadcts, savesettings, PluginAPI, pluginslistbuild,executeplugin, plugininstall, writeu,readvalue, writevalue, snapshot, snapshotscan, findtitleid, savetable, loadtable, valuerange, datadir, pointerscan, pointerfilter
+from main import WindowsBackend, findbase, primaryscan, nextscan, export, importscan, readunit, backendcreate, loadcts, savesettings, PluginAPI, pluginslistbuild,executeplugin, plugininstall, writeu,readvalue, writevalue, snapshot, snapshotscan, findtitleid, savetable, loadtable, valuerange, datadir, pointerscan, pointerfilter, CemuTapVersion
 settings = loadcts()
 import os
 from datetime import datetime
@@ -44,6 +44,9 @@ toptab.add(tabletab,text="Address Table")
 
 pointertab=ttk.Frame(toptab)
 toptab.add(pointertab,text="Pointer Addresses")
+
+memoryviewertab=ttk.Frame(toptab)
+toptab.add(memoryviewertab,text="Memory Viewer")
 
 pluginstab=ttk.Frame(toptab)
 toptab.add(pluginstab,text="Plugins")
@@ -502,15 +505,44 @@ ttk.Button(pointertab,text="Filter Pointers",command=filterpointers).grid(row=3,
 
 ttk.Button(pointertab,text="Add to Address Table", command=addselectedpointertotable).grid(row=5,column=2,columnspan=2,padx=8,pady=8)
 
+ttk.Label(memoryviewertab,text="Address:").grid(row=0,column=0,padx=8,pady=8)
+vieweraddress=ttk.Entry(memoryviewertab)
+vieweraddress.grid(row=0,column=1,padx=8,pady=8,sticky="w")
+
+viewertext=tk.Text(memoryviewertab,width=80,height=16,font=("Courier",10),borderwidth=0,highlightthickness=1,wrap="none")#Courier font makes the text look like a terminal, which is exactly what I want.
+viewertext.grid(row=1,column=0,columnspan=2,padx=8,pady=8)
+
+def memviewerrender():
+    try:
+        start = int(vieweraddress.get(),16)//16*16
+    except ValueError:
+        return
+    try:
+        data=backend.read(base+start, 256)
+    except Exception:
+        viewertext.delete("1.0","end")
+        viewertext.insert("1.0","!!! THIS ADDRESSES MEMORY COULD NOT BE READ")
+        return
+    lines=[]
+    for interval in range(0,len(data),16):
+        row = data[interval:interval+16]
+        hexpart = " ".join(f"{byte:02x}" for byte in row[:8]) + " " + " ".join(f"{byte:02x}" for byte in row[8:])
+        textpart = "".join(chr(byte) if 32 <=byte<127 else "." for byte in row)
+        lines.append(f"{hex(start+interval)}  {hexpart}  {textpart}")
+    viewertext.delete("1.0","end")
+    viewertext.insert("1.0","\n".join(lines))
+
 def addrtablecolors():
     if sv_ttk.get_theme()=="dark":
         results.config(bg="#2c2c2c",fg="#ffffff",highlightbackground="#3a3a3a")
         pluginlist.config(bg="#2c2c2c",fg="#ffffff",highlightbackground="#3a3a3a")
         pointerlist.config(bg="#2c2c2c",fg="#ffffff",highlightbackground="#3a3a3a")
+        viewertext.config(bg="#2c2c2c",fg="#ffffff",highlightbackground="#3a3a3a") #do NOT change to the tab, as it will crash CemuTap.
     else:
         results.config(bg="#ffffff",fg="#000000", highlightbackground="#cccccc")
         pluginlist.config(bg="#ffffff",fg="#000000", highlightbackground="#cccccc")
         pointerlist.config(bg="#ffffff",fg="#000000", highlightbackground="#cccccc")
+        viewertext.config(bg="#ffffff",fg="#000000", highlightbackground="#cccccc") #do NOT change to the tab, as it will crash CemuTap.
 addrtablecolors()
 def theme():
     sv_ttk.toggle_theme()
@@ -520,6 +552,9 @@ def theme():
 
 themebutton = ttk.Button(settingstab, text="Toggle Light/Dark Theme",command=theme)
 themebutton.grid(row=0,column=0,pady=8,padx=8)
+
+ttk.Label(settingstab, text=f"CemuTap Version {CemuTapVersion('Full')} by GABEWARE").grid(row=3,column=0,padx=8,pady=8)
+
 scanstatus = ttk.Label(scantab, text="Ready")
 scanstatus.grid(row=4,column=0,columnspan=2,padx=8,pady=8)
 
@@ -662,6 +697,8 @@ def refloop():
     if 0<len(found)<=12:
         showmatches()
     root.after(1000,refloop)
+    if backend is not None and toptab.select()==str(memoryviewertab):#just checking if the current tab is the memory viewer & Cemu is active
+        memviewerrender()
     for iid,row in tablerows.items():
         try:
             val=readvalue(backend,base,rowaddresses(row),row["size"],row["float"],row.get("signed",False))
@@ -819,7 +856,7 @@ def cemureattachfunct():
     scanstatus.config(text=f"Reattached to Cemu! Cemu World Address: {hex(base)}")
 
 reattachcemubutton=ttk.Button(settingstab, text="Reattach to Cemu", command=cemureattachfunct)
-reattachcemubutton.grid(row=6,column=0,padx=8,pady=8)
+reattachcemubutton.grid(row=1,column=0,padx=8,pady=8)
 
 try:
     backend = backendcreate()
