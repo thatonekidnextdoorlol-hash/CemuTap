@@ -181,6 +181,15 @@ def scanb():
                         return
                 elif mode in ("increased by","decreased by"):
                     value=float(valuebox.get()) if scanfloat else int(valuebox.get())
+                elif mode=="between":
+                    splitvalues=valuebox.get().split(",")
+                    if len(splitvalues)!=2:
+                        raise ValueError
+                    converted=float if scanfloat else int
+                    value=(converted(splitvalues[0]),converted(splitvalues[1]))
+                    if value[0]>value[1]:
+                        value = (value[1],value[0])
+
                 else:
                     value=0
                 historymem()
@@ -241,7 +250,7 @@ bytesizelabel.grid(row=1, column=0, padx=8, pady=8)
 nextscanbutton = ttk.Button(scantab, text="Next Scan", command=scanb)
 nextscanbutton.grid(row=3,column=0,padx=8,pady=8)
 
-scantype=ttk.Combobox(scantab, values=["Exact", "Increased","Decreased","Increased By","Decreased By","Changed","Unchanged"], state="readonly")
+scantype=ttk.Combobox(scantab, values=["Exact", "Increased","Decreased","Increased By","Decreased By","Between","Changed","Unchanged"], state="readonly")
 scantype.grid(row=3,column=1,padx=8,pady=8)
 scantype.set("Exact")
 

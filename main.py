@@ -289,6 +289,9 @@ def comparearrays(mode,now,old,value,floattoggle=False):
         if mode == "decreased by":
             diff=-diff #mirror diff's value
         return diff==value
+    if mode=="between":
+        low,high = value
+        return (now>=low)&(now<=high)
     return np.zeros(len(now),dtype=bool)
 
 def keep(mode,current,old,value,floattoggle=False):
@@ -304,7 +307,6 @@ def keep(mode,current,old,value,floattoggle=False):
         return not (current == old or (current != current and old != old))
     if mode=="unchanged":
         return current == old or (current != current and old != old)
-    
     if mode=="increased by":
         if floattoggle:
             return abs((current-old)-value)<0.01
@@ -313,6 +315,9 @@ def keep(mode,current,old,value,floattoggle=False):
         if floattoggle:
             return abs((old-current)-value)<0.01
         return old-current==value
+    if mode=="between":
+        low,high=value
+        return low<= current <= high
     return False #if none pass, obviously
 
 def nextscan(backend, base, found, previous, value, size, mode="exact",floattoggle=False,signed=False,progress = None):
