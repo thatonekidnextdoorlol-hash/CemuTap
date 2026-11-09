@@ -5,7 +5,7 @@ from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import simpledialog
-from main import WindowsBackend, findbase, primaryscan, nextscan, export, importscan, readunit, backendcreate, loadcts, savesettings, PluginAPI, pluginslistbuild,executeplugin, plugininstall, writeu,readvalue, writevalue, snapshot, snapshotscan, findtitleid, savetable, loadtable, valuerange, datadir, pointerscan, pointerfilter, CemuTapVersion
+from main import WindowsBackend, findbase, primaryscan, nextscan, export, importscan, readunit, backendcreate, loadcts, savesettings, PluginAPI, pluginslistbuild,executeplugin, plugininstall, writeu,readvalue, writevalue, snapshot, snapshotscan, findtitleid, savetable, loadtable, valuerange, datadir, pointerscan, pointerfilter, CemuTapVersion, vectorscan, keep
 settings = loadcts()
 import os
 from datetime import datetime
@@ -24,10 +24,16 @@ scansize = 2
 buttonstate = "!disabled"
 history = []
 pointeraddresses = []
+vectorbegin=[]
+vectorwindow = None
+vectorlist = None
+previousvectors = {}
+vectoraxis=None
+vectormode=None
 
 root = tk.Tk()
 root.title("CemuTap")
-root.geometry("850x400")
+root.geometry("850x450")
 sv_ttk.set_theme(settings["theme"])
 
 toptab=ttk.Notebook(root)
@@ -66,7 +72,7 @@ valuebox.grid(row=0, column=1, padx=8, pady=8)
 sizeframe = ttk.Frame(scantab)
 sizeframe.grid(row=1,column=1,pady=8,padx=8)
 
-size = ttk.Combobox(sizeframe, values=["1","2","4", "Float","Double"], state="readonly", width=7)
+size = ttk.Combobox(sizeframe, values=["1","2","4","8", "Float","Double"], state="readonly", width=7)
 size.pack(side="left")
 size.set("2")
 
@@ -241,6 +247,85 @@ def scanundo():
     found,previous,scansize,scanfloat,scansigned =history.pop()
     showmatches()
     scanstatus.config(text=f"Undo Success! Recovered {len(found)} Address Matches.")
+
+def readvector(start):
+    return tuple(readvalue(backend,base,start+i*4,4,True) for i in range(3))
+
+def vectorsnapshots():
+    previousvectors.clear()
+    for start in vectorbegin:
+        try:
+            previousvectors[start]=readvector(start)
+        except Exception:
+            pass
+
+def showvectorvalues():
+    selected=vectorlist.curselection()
+    vectorlist.delete(0,"end")
+    for start in vectorbegin[:200]:
+        try:
+            x,y,z=(round(readvalue(backend,base, start+g*4,4,True),3) for g in range(3))
+            vectorlist.insert("end",f"{hex(start)} // X: {x} Y: {y} Z: {z}")
+        except Exception:
+            vectorlist.insert("end",f"{hex(start)} // ?")
+    for index in selected:
+        vectorlist.selection_set(index)
+
+def vectorfilter():
+    global vectorbegin
+    axis="XYZ".index(vectoraxis.get())
+    mode = vectormode.get().lower()
+    survivors = []
+    for start in vectorbegin:
+        if start not in previousvectors:
+            continue
+        try:
+            current = readvector(start)
+        except Exception:
+            continue
+        if keep(mode,current[axis],previousvectors[start][axis], 0, True):
+            survivors.append(start)
+    vectorbegin =survivors
+    vectorsnapshots()
+    vectorlist.selection_clear(0,"end")
+    showvectorvalues()
+    scanstatus.config(text=f"Vector Window: {len(vectorbegin)} Vectors Remaining.")
+
+
+def vectorfind():
+    global vectorbegin,vectorwindow,vectorlist,vectoraxis,vectormode
+    if not found or not scanfloat or scansize!=4:
+        scanstatus.config(text="Please run a Float scan before finding vectors.")#dispicable me
+        return
+    vectorbegin=vectorscan(found)
+    vectorsnapshots()
+
+    if vectorwindow is None or not vectorwindow.winfo_exists(): #checking if the window already exists
+        vectorwindow=tk.Toplevel(root)
+        vectorwindow.title("Vector Finder")
+        frame = ttk.Frame(vectorwindow)
+        frame.pack(fill="both",expand=True)
+        vectorcontrols=ttk.Frame(frame)
+        vectorcontrols.pack(fill="x",padx=8,pady=(8,0))
+        vectoraxis=ttk.Combobox(vectorcontrols,values=["X","Y","Z"],state="readonly",width=4)
+
+        vectoraxis.pack(side="left")
+        vectoraxis.set("Y")#Usually people will change the y value, as it is the simplest value to know how far it has gone (up or down)
+
+        vectormode=ttk.Combobox(vectorcontrols,values=["Increased","Decreased","Changed","Unchanged"],state="readonly",width=11)
+        vectormode.pack(side="left",padx=(8,0))
+        vectormode.set("Increased")
+        ttk.Button(vectorcontrols,text="Filter",command=vectorfilter).pack(side="left",padx=(8,0))
+
+        darkmode = sv_ttk.get_theme()=="dark"
+        vectorlist=tk.Listbox(frame,width=70,height=15, font=("Courier",10),borderwidth=0,highlightthickness=1) #looks similar to the memory viewer tab, esentially looks like a terminal/console
+        if darkmode:
+            vectorlist.config(bg="#2c2c2c",fg="#ffffff")
+        else:
+            vectorlist.config(bg="#ffffff",fg="#000000")
+        vectorlist.pack(fill="both",expand=True,padx=8,pady=8)
+    showvectorvalues()
+    scanstatus.config(text=f"{len(vectorbegin)} Vectors Found.")
 
 def cleartableevent():
     global found,previous,snapshotpath
@@ -624,7 +709,7 @@ sizelabel.grid(row=1, column=0, padx=8, pady=8)
 editorsizeframe=ttk.Frame(liveedittab)
 editorsizeframe.grid(row=1,column=1,padx=8,pady=8)
 #   editor size frame
-editorsize=ttk.Combobox(editorsizeframe, values=["1","2","4","Float", "Double"], state="readonly", width=7)
+editorsize=ttk.Combobox(editorsizeframe, values=["1","2","4","8","Float", "Double"], state="readonly", width=7)
 editorsize.pack(side="left")
 editorsize.set("2")
 editorsigned=tk.BooleanVar(value=False)
@@ -655,13 +740,16 @@ tablecontrols = ttk.Frame(scantab)
 tablecontrols.grid(row=5,column=2,padx=8,pady=8)
 
 resettable = ttk.Button(tablecontrols, text="Clear Address Table", command=cleartableevent)
-resettable.pack(side=tk.LEFT,padx=8)
+resettable.grid(row=0,column=0,padx=4,pady=4,sticky="ew")
 
 addtotablebutton=ttk.Button(tablecontrols,text="Add Value to Table",command=addtotable)
-addtotablebutton.pack(side=tk.LEFT,padx=8)
+addtotablebutton.grid(row=0,column=1,padx=4,pady=4,sticky="ew")
 
 undobutton=ttk.Button(tablecontrols,text="Undo Scan",command=scanundo)
-undobutton.pack(side=tk.LEFT,padx=8)
+undobutton.grid(row=1,column=0,padx=4,pady=4,sticky="ew")
+
+vectorbutton=ttk.Button(tablecontrols,text="Find Vectors",command=vectorfind)
+vectorbutton.grid(row=1,column=1,padx=4,pady=4,sticky="ew")
 
 def editortype():
     editorbytesize,floattoggle=parsetype(editorsize.get())
@@ -711,6 +799,8 @@ def refloop():
     root.after(1000,refloop)
     if backend is not None and toptab.select()==str(memoryviewertab):#just checking if the current tab is the memory viewer & Cemu is active
         memviewerrender()
+    if backend is not None and vectorwindow is not None and vectorwindow.winfo_exists():#refresh the vector window only if it exists (duh)
+        showvectorvalues()
     for iid,row in tablerows.items():
         try:
             val=readvalue(backend,base,rowaddresses(row),row["size"],row["float"],row.get("signed",False))

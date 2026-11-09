@@ -172,7 +172,7 @@ def readunit(backend, base, guest, size):
 
 def dtypefor(size,floattoggle=False,signed=False):
     if floattoggle:
-        return ">f{size}"
+        return f">f{size}"
     return f">i{size}" if signed else f">u{size}"#returns >i(size) if value is signed, if it isn't it returns >u(size)
 
 def valuerange(size,signed=False):
@@ -241,6 +241,18 @@ def pointerfilter(backend,base,candidates,target):
         if pointedto+off==target:
             survivors.append((pointer,off))
     return survivors
+
+def vectorscan(found):
+    foundset=set(found)
+    vectors=[]
+    until=-1
+    for address in sorted(found):
+        if address <=until:
+            continue
+        if address + 4 in foundset and address+8 in foundset:
+            vectors.append(address)
+            until=address+8
+    return vectors
 
 def snapshot(backend,base,progress=None):
     path=os.path.join(datadir(),"snapshot.bin")

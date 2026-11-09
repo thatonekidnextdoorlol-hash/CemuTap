@@ -16,6 +16,7 @@ CemuTap is a free and open source alternative to Cheat Engine's memory scanner, 
 - Address Table: Save addresses with names, watch their live values, edit their live values, and bulk freeze several values at once all from a single page.
 - Export and import Address Tables as a ``.ctms`` file to keep or share per game.
 - Signed integers, so negative address values can be both read and written correctly.
+- Vector Finder: Groups float results into X/Y/Z Vectors with live values and filtering options.
 
 ## Requirements
 - Windows or Linux
@@ -23,7 +24,7 @@ CemuTap is a free and open source alternative to Cheat Engine's memory scanner, 
 
 ## Usage
 1. Set your value to the integer you are searching for. (ex. 1110 Lives -> 1110)
-2. Set the "Byte Size To Query" value to the amount of bytes the game uses for that value (1, 2, or 4).
+2. Set the "Byte Size To Query" value to the amount of bytes the game uses for that value (1, 2, 8, 4, Double, or Float). And for negative values, check the "Signed" checkbox.
 3. Click the "New Scan" button to start a search for said value in Cemu's memory.
 4. After the first scan is completed, modify your value in-game (ex. Losing a life and lives dropping to 1109), then change Value to the new value. (ex. 1109 Lives -> 1109)
    
