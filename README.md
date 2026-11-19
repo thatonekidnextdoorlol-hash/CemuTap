@@ -1,5 +1,4 @@
 # CemuTap
-<br>
 <img src="CemuTap.png" width="300px">
 
 CemuTap is a free and open source alternative to Cheat Engine's memory scanner, designed specifically for the Cemu Wii U Emulator.
