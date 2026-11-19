@@ -1,5 +1,4 @@
 # CemuTap
-![Hackatime](https://hackatime.hackclub.com/api/v1/badge/U0C4E7F1317/thatonekidnextdoorlol-hash/CemuTap)
 <br>
 <img src="CemuTap.png" width="300px">
 
